@@ -131,7 +131,8 @@ func (m *MQTT) Write(metrics []telegraf.Metric) error {
 
 		t = append(t, metric.Name())
 		topic := strings.Join(t, "/")
-
+		tags := metric.Tags()
+		delete(tags,"host")
 		buf, err := m.serializer.Serialize(metric)
 		if err != nil {
 			return fmt.Errorf("MQTT Could not serialize metric: %s",

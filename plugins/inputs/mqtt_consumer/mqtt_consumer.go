@@ -163,7 +163,6 @@ func (m *MQTTConsumer) receiver() {
 		case <-m.done:
 			return
 		case msg := <-m.in:
-			topic := msg.Topic()
 			metrics, err := m.parser.Parse(msg.Payload())
 			if err != nil {
 				m.acc.AddError(fmt.Errorf("E! MQTT Parse Error\nmessage: %s\nerror: %s",
@@ -171,9 +170,7 @@ func (m *MQTTConsumer) receiver() {
 			}
 
 			for _, metric := range metrics {
-				tags := metric.Tags()
-				tags["topic"] = topic
-				m.acc.AddFields(metric.Name(), metric.Fields(), tags, metric.Time())
+				m.acc.AddFields(metric.Name(), metric.Fields(), metric.Tags(), metric.Time())
 			}
 		}
 	}
