@@ -121,24 +121,14 @@ func (m *MQTT) Write(metrics []telegraf.Metric) error {
 	}
 
 	for _, metric := range metrics {
-		var t []string
-		if m.TopicPrefix != "" {
-			t = append(t, m.TopicPrefix)
-		}
-		if hostname != "" {
-			t = append(t, hostname)
-		}
-
-		t = append(t, metric.Name())
-		topic := strings.Join(t, "/")
-		tags := metric.Tags()
-		delete(tags,"host")
+		topic := fmt.Sprintf("%s/%s", hostname, metric.Name())
+		// lets drop this "host" stuff we don't need it
+		delete(metric.Tags(),"host")
 		buf, err := m.serializer.Serialize(metric)
 		if err != nil {
 			return fmt.Errorf("MQTT Could not serialize metric: %s",
 				metric.String())
 		}
-
 		err = m.publish(topic, buf)
 		if err != nil {
 			return fmt.Errorf("Could not write to MQTT server, %s", err)

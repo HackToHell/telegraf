@@ -137,16 +137,25 @@ func (a *Elasticsearch) Write(metrics []telegraf.Metric) error {
 
 	for _, metric := range metrics {
 		var name = metric.Name()
-
+		indexName := ""
 		// index name has to be re-evaluated each time for telegraf
 		// to send the metric to the correct time-based index
-		indexName := a.GetIndexName(a.IndexName, metric.Time())
+		tags := metric.Tags()
+		if device_id, ok := tags["device_id"]; ok {
+			indexName = fmt.Sprintf("device_%s", device_id)
+		}
+		if mission_id,ok := tags["mission_id"]; ok{
+			indexName = fmt.Sprintf("mission_%s", mission_id)
+		}
 
 		m := make(map[string]interface{})
 
 		m["@timestamp"] = metric.Time()
-		m["measurement_name"] = name
-		m["tag"] = metric.Tags()
+		m["log_name"] = name
+		m["tenant_id"] = tags["tenant_id"]
+		m["mission_id"] = tags["mission_id"]
+		m["device_id"] = tags["device_id"]
+
 		m[name] = metric.Fields()
 
 		bulkRequest.Add(elastic.NewBulkIndexRequest().
