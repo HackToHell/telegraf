@@ -14,7 +14,7 @@ import (
 )
 
 var sampleConfig = `
-  servers = ["localhost:1883"] # required.
+  servers = ["tcp://localhost:1883","ssl://localhost:1883"] # required.
 
   ## MQTT outputs send metrics to this topic format
   ##    "<topic_prefix>/<hostname>/<pluginname>/"
@@ -121,14 +121,23 @@ func (m *MQTT) Write(metrics []telegraf.Metric) error {
 	}
 
 	for _, metric := range metrics {
-		topic := fmt.Sprintf("%s/%s", hostname, metric.Name())
-		// lets drop this "host" stuff we don't need it
-		delete(metric.Tags(),"host")
+		var t []string
+		if m.TopicPrefix != "" {
+			t = append(t, m.TopicPrefix)
+		}
+		if hostname != "" {
+			t = append(t, hostname)
+		}
+
+		t = append(t, metric.Name())
+		topic := strings.Join(t, "/")
+
 		buf, err := m.serializer.Serialize(metric)
 		if err != nil {
 			return fmt.Errorf("MQTT Could not serialize metric: %s",
 				metric.String())
 		}
+
 		err = m.publish(topic, buf)
 		if err != nil {
 			return fmt.Errorf("Could not write to MQTT server, %s", err)
@@ -162,9 +171,7 @@ func (m *MQTT) createOpts() (*paho.ClientOptions, error) {
 		return nil, err
 	}
 
-	scheme := "tcp"
 	if tlsCfg != nil {
-		scheme = "ssl"
 		opts.SetTLSConfig(tlsCfg)
 	}
 
@@ -180,9 +187,7 @@ func (m *MQTT) createOpts() (*paho.ClientOptions, error) {
 	if len(m.Servers) == 0 {
 		return opts, fmt.Errorf("could not get host infomations")
 	}
-	for _, host := range m.Servers {
-		server := fmt.Sprintf("%s://%s", scheme, host)
-
+	for _, server := range m.Servers {
 		opts.AddBroker(server)
 	}
 	opts.SetAutoReconnect(true)
